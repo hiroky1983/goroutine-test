@@ -16,7 +16,8 @@ func main() {
 	// learnGoRoutine()
 	// learnTracer()
 	// learnChannel()
-	learnChannel2()
+	// learnChannel2()
+	learnCloseChannel()
 }
 
 func learnGoRoutine() {
@@ -74,6 +75,13 @@ func cTask(ctx context.Context,wg *sync.WaitGroup, name string) {
 }
 
 func learnChannel() {
+	// 読み取り専用チャネル
+	// var ch <-chan int
+	// 書き込み専用チャネル
+	// var ch chan<- int
+	// 双方向チャネル
+	// var ch chan int
+  // 読み込み、書き込みは矢印の向きで判断する
 	ch := make(chan int)
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -98,4 +106,35 @@ func learnChannel2() {
 	ch2 <- 2
 	ch2 <- 3
 	fmt.Println(<-ch2)
+}
+
+func learnCloseChannel() {
+	ch1 := make(chan int)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		fmt.Println(<-ch1)
+	}()
+	ch1 <- 10
+	close(ch1)
+	v, ok := <-ch1
+	// fmt.Printf("%v, %v\n", v, ok)
+	wg.Wait()
+
+	// バッファ付きチャネル
+	ch2 := make(chan int, 2)
+	ch2 <- 1
+	ch2 <- 2
+	close(ch2)
+	v, ok = <-ch2
+	// 1, true
+	fmt.Printf("%v, %v\n", v, ok)
+	v, ok = <-ch2
+	// 2, true
+	fmt.Printf("%v, %v\n", v, ok)
+	v, ok = <-ch2
+	// 0, false
+	fmt.Printf("%v, %v\n", v, ok)
+	// バッファ付きチャネルの場合、closeしてもまだ読み込まれていないチャネルの値がある場合は中身は消えない
 }
