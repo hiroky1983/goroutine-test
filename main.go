@@ -13,8 +13,10 @@ import (
 
 // goの並列処理とchannelの学習
 func main() {
-	learnGoRoutine()
-	learnTracer()
+	// learnGoRoutine()
+	// learnTracer()
+	// learnChannel()
+	learnChannel2()
 }
 
 func learnGoRoutine() {
@@ -69,4 +71,31 @@ func cTask(ctx context.Context,wg *sync.WaitGroup, name string) {
 	defer wg.Done()
 	time.Sleep(time.Second)
 	fmt.Println(name)
+}
+
+func learnChannel() {
+	ch := make(chan int)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ch <- 10
+		time.Sleep(500 * time.Millisecond)
+	}()
+	fmt.Println(<-ch)
+	wg.Wait()
+}
+
+func learnChannel2() {
+	ch := make(chan int)
+	go func() {
+		fmt.Println(<-ch)
+	}()
+	ch <- 10
+	fmt.Printf("num of goroutine: %d\n", runtime.NumGoroutine())
+
+	ch2 := make(chan int, 1)
+	ch2 <- 2
+	ch2 <- 3
+	fmt.Println(<-ch2)
 }
