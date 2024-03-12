@@ -137,4 +137,37 @@ func learnCloseChannel() {
 	// 0, false
 	fmt.Printf("%v, %v\n", v, ok)
 	// バッファ付きチャネルの場合、closeしてもまだ読み込まれていないチャネルの値がある場合は中身は消えない
+
+	ch3 := generateCountStream()
+	for v := range ch3 {
+		fmt.Println(v)
+	}
+
+	nCh := make(chan struct{})
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			fmt.Printf("goroutine %v started\n", i)
+			<-nCh
+			fmt.Println(i)
+		}(i)
+	}
+	time.Sleep(2 * time.Second)
+	close(nCh)
+	fmt.Println("closed channel")
+
+	wg.Wait()
+	fmt.Println("all goroutine finished")
+}
+
+func generateCountStream() <-chan int {
+	ch := make(chan int)
+	go func() {
+		defer close(ch)
+		for i := 0; i <= 5; i++ {
+			ch <- i
+		}
+	}()
+	return ch
 }
