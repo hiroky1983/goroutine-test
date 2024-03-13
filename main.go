@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const bufferSize = 3
+
 // goの並列処理とchannelの学習
 func main() {
 	// learnGoRoutine()
@@ -18,7 +20,8 @@ func main() {
 	// learnChannel()
 	// learnChannel2()
 	// learnCloseChannel()
-	learnSelect()
+	// learnSelect()
+	learnSelectDefault()
 }
 
 func learnGoRoutine() {
@@ -206,4 +209,27 @@ loop:
 	}
 	wg.Wait()
 	fmt.Println("all goroutine finished")
+}
+
+func learnSelectDefault() {
+	var wg sync.WaitGroup
+	ch := make(chan string, bufferSize)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < bufferSize; i++ {
+			time.Sleep(1000 * time.Millisecond)
+			ch <- "hello"
+		}
+		close(ch)
+	}()
+		for i := 0; i < bufferSize; i++ {
+			select {
+			case m := <-ch:
+				fmt.Println(m)
+			default:
+				fmt.Println("no value")
+			}
+			time.Sleep(1500 * time.Millisecond)
+		}
 }
