@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"runtime/trace"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -22,7 +23,11 @@ func main() {
 	// learnCloseChannel()
 	// learnSelect()
 	// learnSelectDefault()
-	learnSelectContinuous()
+	// learnSelectContinuous()
+	// noMutex()
+	// mutex()
+	// rwMutex()
+	atomicfunc()
 }
 
 func learnGoRoutine() {
@@ -299,4 +304,99 @@ func learnSelectContinuous() {
 	go countConsumer(ctx, &wg, ch1, ch2)
 	wg.Wait()
 	fmt.Println("all goroutine finished")
+}
+
+func noMutex() {
+	var wg sync.WaitGroup
+	var i int
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		i++
+	}()
+	go func() {
+		defer wg.Done()
+		i++
+	}()
+	// 複数のgoroutineが同じ変数にアクセスしたときに上記だと排他制御がないため、iの値が不定になる
+	// 基本fmt.Println(i)の結果は2になるが、たまに1になることがある
+	// go run -race main.goで実行するとデッドロックが発生する
+	// mutexを使うことで排他制御を行う
+	wg.Wait()
+	fmt.Println(i)
+}
+
+func mutex() {
+	var wg sync.WaitGroup
+	// データ競合を防ぐためにmutexを使う
+	var mu sync.Mutex
+	var i int
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		mu.Lock()
+		defer mu.Unlock()
+		i++
+	}()
+	go func() {
+		defer wg.Done()
+		mu.Lock()
+		defer mu.Unlock()
+		i++
+	}()
+	wg.Wait()
+	fmt.Println(i)
+}
+
+func rwMutex() {
+	var wg sync.WaitGroup
+	var rwMu sync.RWMutex
+	var c int
+
+	wg.Add(4)
+	go write(&rwMu, &wg, &c)
+	go read(&rwMu, &wg, &c)
+	go read(&rwMu, &wg, &c)
+	go read(&rwMu, &wg, &c)
+	wg.Wait()
+	fmt.Println("finished")
+}
+
+func read (mu *sync.RWMutex, wg *sync.WaitGroup, c *int) {
+	defer wg.Done()
+	time.Sleep(10 * time.Millisecond)
+	mu.RLock()
+	defer mu.RUnlock()
+	fmt.Println("read lock")
+	fmt.Println(*c)
+	time.Sleep(1 * time.Second)
+	fmt.Println("read unlock")
+}
+
+func write (mu *sync.RWMutex, wg *sync.WaitGroup, c *int) {
+	defer wg.Done()
+	mu.Lock()
+	defer mu.Unlock()
+	fmt.Println("write lock")
+	*c +=1
+	time.Sleep(1 * time.Second)
+	fmt.Println("write unlock")
+}
+
+func atomicfunc() {
+	var wg sync.WaitGroup
+	var c int64
+
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 10; j++ {
+				atomic.AddInt64(&c, 1)
+			}
+		}()
+	}
+	wg.Wait()
+	fmt.Println(c)
+	fmt.Println("finished")
 }
