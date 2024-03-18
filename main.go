@@ -21,7 +21,8 @@ func main() {
 	// learnChannel2()
 	// learnCloseChannel()
 	// learnSelect()
-	learnSelectDefault()
+	// learnSelectDefault()
+	learnSelectContinuous()
 }
 
 func learnGoRoutine() {
@@ -234,6 +235,8 @@ func learnSelectDefault() {
 		}
 }
 
+const bufsize = 5
+
 func countProducer(wg *sync.WaitGroup, ch chan<- int, size, sleep int) {
 	defer wg.Done()
 	defer close(ch)
@@ -243,14 +246,30 @@ func countProducer(wg *sync.WaitGroup, ch chan<- int, size, sleep int) {
 	}
 }
 
-func countConsumer(ctx contenxt.Context, wg *sync.WaitGroup, ch1 <-chan int, ch2 <-chan int) {
+func countConsumer(ctx context.Context, wg *sync.WaitGroup, ch1 <-chan int, ch2 <-chan int) {
 	defer wg.Done()
-loop:
-	for ch1 != nil || ch2 != 2 {
+// loop:
+	for ch1 != nil || ch2 != nil {
 		select {
 			case <-ctx.Done():
 				fmt.Println(ctx.Err())
-				break loop
+				// break loop
+				for ch1 != nil || ch2 != nil {
+					select {
+					case v, ok := <-ch1:
+						if !ok {
+							ch1 = nil
+							break
+						}
+						fmt.Printf("ch1 %v\n",v)
+					case v, ok := <-ch2:
+						if !ok {
+							ch2 = nil
+							break
+						}
+						fmt.Printf("ch2 %v\n",v)
+					}
+				}
 			case v, ok := <-ch1:
 				if !ok {
 					ch1 = nil
@@ -265,4 +284,19 @@ loop:
 				fmt.Printf("ch2 %v\n",v)
 		}
 	}
+}
+
+func learnSelectContinuous() {
+	ch1 := make(chan int, bufsize)
+	ch2 := make(chan int, bufsize)
+	var wg sync.WaitGroup
+	ctx , cancel := context.WithTimeout(context.Background(), 180 * time.Millisecond)
+	defer cancel()
+
+	wg.Add(3)
+	go countProducer(&wg, ch1, bufsize, 50)
+	go countProducer(&wg, ch2, bufsize, 500)
+	go countConsumer(ctx, &wg, ch1, ch2)
+	wg.Wait()
+	fmt.Println("all goroutine finished")
 }
