@@ -29,7 +29,8 @@ func main() {
 	// rwMutex()
 	// atomicfunc()
 	// learningContext()
-	learningContext2()
+	// learningContext2()
+	learnContextWithDeadline()
 }
 
 func learnGoRoutine() {
@@ -430,7 +431,7 @@ func subTask(ctx context.Context, wg *sync.WaitGroup, id string) {
 
 func learningContext2() {
 	var wg sync.WaitGroup
-	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 1200*time.Millisecond)
 	defer cancel()
 	wg.Add(1)
 	go func() {
@@ -458,7 +459,7 @@ func learningContext2() {
 }
 
 func criticalTask(ctx context.Context) (string, error) {
-  ctx, cancel := context.WithTimeout(ctx, 800 * time.Millisecond)
+  ctx, cancel := context.WithTimeout(ctx, 1200 * time.Millisecond)
 	t := time.NewTicker(1000 * time.Millisecond)
 	defer cancel()
 	select {
@@ -479,4 +480,33 @@ func normalTask(ctx context.Context) (string, error) {
 			t.Stop()
 	}
 	return "B", nil
+}
+
+func learnContextWithDeadline() {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(20 * time.Millisecond))
+	defer cancel()
+	ch := subTaskWithDeadline(ctx)
+	v, ok := <-ch
+	if ok {
+		fmt.Println(v)
+	}
+	fmt.Println("subtask finished")
+
+}
+
+func subTaskWithDeadline(ctx context.Context) <-chan string {
+	ch := make(chan string)
+	go func() {
+		defer close(ch)
+		deadline, ok := ctx.Deadline()
+		if ok {
+			if deadline.Sub(time.Now().Add(30 * time.Millisecond)) < 0 {
+				fmt.Println("impossible to meet deadline")
+				return
+			}
+		}
+		time.Sleep(30 * time.Millisecond)
+		ch <- "hello"
+	}()
+	return ch
 }
