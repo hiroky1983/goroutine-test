@@ -10,6 +10,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 const bufferSize = 3
@@ -30,7 +32,8 @@ func main() {
 	// atomicfunc()
 	// learningContext()
 	// learningContext2()
-	learnContextWithDeadline()
+	// learnContextWithDeadline()
+	learnErrGroup()
 }
 
 func learnGoRoutine() {
@@ -509,4 +512,49 @@ func subTaskWithDeadline(ctx context.Context) <-chan string {
 		ch <- "hello"
 	}()
 	return ch
+}
+
+func learnErrGroup () {
+	// eg := new(errgroup.Group)
+	eg, ctx := errgroup.WithContext(context.Background())
+	s := []string{"task1", "fake1", "task2", "fake2", "task3"}
+  for _, v := range s {
+		task := v
+		eg.Go(func() error {
+			return doTask(ctx, task)
+		})
+	}
+	if err := eg.Wait(); err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("all tasks completed")
+}
+
+func doTask(ctx context.Context,task string) error {
+	// if task == "fake1" || task == "fake2" {
+	// 	return fmt.Errorf("failed to execute %s", task)
+	// }
+	// fmt.Printf("task %v completed\n", task)
+	// return nil
+		var t *time.Ticker
+		switch task {
+			case "fake1":
+				t = time.NewTicker(500 * time.Millisecond)
+			case "fake2":
+				t = time.NewTicker(700 * time.Millisecond)
+			default:
+				t = time.NewTicker(200 * time.Millisecond)
+		}
+		select {
+			case <-ctx.Done():
+				fmt.Printf("%v cancelled : %v\n", task, ctx.Err())
+				return ctx.Err()
+			case <-t.C:
+				t.Stop()
+				if task == "fake1" || task == "fake2" {
+					return fmt.Errorf("failed to execute %s", task)
+				}
+			fmt.Printf("task %v completed\n", task)
+		}
+		return nil
 }
